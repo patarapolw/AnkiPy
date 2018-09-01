@@ -13,7 +13,7 @@ pip install AnkiPy
 ``` python
 from AnkiPy import Anki
 
-test_anki = Anki(_PATH_FOR_ANKI_FILE_)
+test_anki = Anki(_PATH_OF_ANKI_FILE_)
 test_deck = test_anki.deck(_DECK_NAME_)
 
 test_deck.add_item("Hello", "Bonjour")
@@ -26,7 +26,7 @@ test_deck.add_item("House", "Maison")
 
 ``` python
 // Permits to set more than two fields. However, by default, only first two fields are used.
-// Everything before '<hr id=answer>' is the front of the card, everything after is the behind
+// Template (optional). Everything before '<hr id=answer>' is the front of the card, everything after is the behind.
 // Permits to change the css of your cards (optional). You can just leave this out, it will use the default CSS.
 test_note = test_anki.new_note(
     name=_NOTE_NAME_,
@@ -46,7 +46,7 @@ test_deck.add_item("House", "Casa", "Maison", note=test_note)
 ``` python
 // Editing the CSS is also possible.
 test_note2 = test_anki.get_note(_ANOTHER_NOTE_NAME_)
-assert test_note2 == _CSS_STRING_
+assert test_note2.css == _CSS_STRING_
 test_note2.css = _NEW_CSS_STRING_
 ```
 
