@@ -20,6 +20,20 @@ test_deck.add_item("Hello", "Bonjour")
 test_deck.add_item("How are you ?", "Comment ca va ?")
 test_deck.add_item("Flower", "fleur")
 test_deck.add_item("House", "Maison")
+
+test_anki.close()
+```
+
+or
+
+```python
+with Anki(_PATH_OF_ANKI_FILE_) as anki:
+    test_deck = test_anki.deck(_DECK_NAME_)
+
+    test_deck.add_item("Hello", "Bonjour")
+    test_deck.add_item("How are you ?", "Comment ca va ?")
+    test_deck.add_item("Flower", "fleur")
+    test_deck.add_item("House", "Maison")
 ```
 
 ### Setting fields
@@ -28,17 +42,17 @@ test_deck.add_item("House", "Maison")
 // Permits to set more than two fields. However, by default, only first two fields are used.
 // Template (optional). Everything before '<hr id=answer>' is the front of the card, everything after is the behind.
 // Permits to change the css of your cards (optional). You can just leave this out, it will use the default CSS.
-test_note = test_anki.new_note(
-    name=_NOTE_NAME_,
+test_model = test_anki.new_model(
+    name=_MODEL_NAME_,
     fields=["English", "Spanish", "French"],
     templates=["{0} - {1} \\n<hr id=answer>\\n {2}"],
     css=_CSS_STRING_
 )
 
-test_deck.add_item("Hello", "Hola", "Bonjour", note=test_note)
-test_deck.add_item("How are you ?", "Como estas?", "Comment ca va ?", note=test_note)
-test_deck.add_item("Flower", "flor", "fleur", note=test_note)
-test_deck.add_item("House", "Casa", "Maison", note=test_note)
+test_deck.add_item("Hello", "Hola", "Bonjour", model=test_model)
+test_deck.add_item("How are you ?", "Como estas?", "Comment ca va ?", model=test_model)
+test_deck.add_item("Flower", "flor", "fleur", model=test_model)
+test_deck.add_item("House", "Casa", "Maison", model=test_model)
 ```
 
 ### Editing CSS
