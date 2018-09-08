@@ -30,10 +30,12 @@ class AnkiDatabase:
         self.init()
 
     def init(self):
-        self.conn.executescript('''
+        cursor = self.conn.execute('SELECT COUNT(*) FROM sqlite_master WHERE type="table" AND name = "col"')
+        if cursor.fetchone()[0] != 1:
+            self.conn.executescript('''
 -- Cards are what you review. 
 -- There can be multiple cards for each note, as determined by the Template.
-CREATE TABLE cards IF NOT EXISTS (
+CREATE TABLE cards (
     id              integer primary key,
       -- the epoch milliseconds of when the card was created
     nid             integer not null,--    
@@ -82,7 +84,7 @@ CREATE TABLE cards IF NOT EXISTS (
 );
 
 -- col contains a single row that holds various information about the collection
-CREATE TABLE col IF NOT EXISTS (
+CREATE TABLE col (
     id              integer primary key,
       -- arbitrary number since there is only one row
     crt             integer not null,
@@ -117,7 +119,7 @@ CREATE TABLE col IF NOT EXISTS (
 -- usn should be set to -1, 
 -- oid is the original id.
 -- type: 0 for a card, 1 for a note and 2 for a deck
-CREATE TABLE graves IF NOT EXISTS (
+CREATE TABLE graves (
     usn             integer not null,
     oid             integer not null,
     type            integer not null
@@ -125,7 +127,7 @@ CREATE TABLE graves IF NOT EXISTS (
 
 -- Notes contain the raw information that is formatted into a number of cards
 -- according to the models
-CREATE TABLE notes IF NOT EXISTS (
+CREATE TABLE notes (
     id              integer primary key,
       -- epoch seconds of when the note was created
     guid            text not null,
@@ -154,7 +156,7 @@ CREATE TABLE notes IF NOT EXISTS (
 );
 
 -- revlog is a review history; it has a row for every review you've ever done!
-CREATE TABLE revlog IF NOT EXISTS (
+CREATE TABLE revlog (
     id              integer primary key,
        -- epoch-milliseconds timestamp of when you did the review
     cid             integer not null,
@@ -186,7 +188,15 @@ CREATE INDEX ix_notes_csum on notes (csum);
 CREATE INDEX ix_notes_usn on notes (usn);
 CREATE INDEX ix_revlog_cid on revlog (cid);
 CREATE INDEX ix_revlog_usn on revlog (usn);
-        ''')
+            ''')
+
+        self.ids = {
+            'did': set(),
+            'mid': set(),
+            'nid': set(),
+            'cid': set(),
+            'guid': set()
+        }
 
         cursor = self.conn.execute('SELECT decks, models FROM col')
         for row in cursor:
@@ -195,18 +205,18 @@ CREATE INDEX ix_revlog_usn on revlog (usn);
 
         cursor = self.conn.execute('SELECT id, guid FROM notes')
         for row in cursor:
-            self.ids.setdefault('nid', set()).add(row[0])
-            self.ids.setdefault('guid', set()).add(row[1])
+            self.ids['nid'].add(row[0])
+            self.ids['guid'].add(row[1])
 
         cursor = self.conn.execute('SELECT id FROM cards')
         for row in cursor:
-            self.ids.setdefault('cid', set()).add(row[0])
+            self.ids['cid'].add(row[0])
 
     def deck(self, name, create=None):
         col = deepcopy(DEFAULTS['col'])
 
-        cursor = self.conn.execute('SELECT decks FROM col')
-        if cursor is None:
+        db_col = self.conn.execute('SELECT decks FROM col').fetchone()
+        if db_col is None:
             if create is False:
                 raise ValueError('{} does not exists.'.format(name))
             else:
@@ -216,27 +226,35 @@ CREATE INDEX ix_revlog_usn on revlog (usn);
                     'decks': json.dumps(decks),
                     # 'models': json.dumps(models)
                 })
-
                 self.conn.execute('INSERT INTO col ({}) VALUES ({})'.format(','.join(col.keys()),
                                                                             ','.join('?' for _ in col.keys())),
-                                  col.values())
+                                  tuple(col.values()))
         else:
-            decks = json.loads(cursor.fetchone()[0], object_pairs_hook=OrderedDict)
+            decks = json.loads(db_col[0], object_pairs_hook=OrderedDict)
 
-        if name in decks.keys():
+        deck = None
+        for v in decks.values():
+            if name == v['name']:
+                deck = v
+
+        if deck is not None:
             if create is True:
                 raise ValueError('{} already exists'.format(name))
             else:
-                return AnkiDeck(decks[name], self)
+                return AnkiDeck(deck, self)
         else:
-            decks[name] = col['decks']
-            decks[name]['name'] = name
+            col = deepcopy(DEFAULTS['col'])
+            deck_id = self._new_id('did')
+            decks[str(deck_id)] = tuple(json.loads(col['decks']).values())[0]
+            decks[str(deck_id)].update({
+                'id': deck_id,
+                'name': name
+            })
 
-            self.conn.execute('INSERT INTO col ({}) VALUES ({})'.format(','.join(col.keys()),
-                                                                        ','.join('?' for _ in col.keys())),
-                              col.values())
+            self.conn.execute('UPDATE col SET decks=?', (json.dumps(decks), ))
+            self.conn.commit()
 
-            return AnkiDeck(decks[name], self)
+            return AnkiDeck(decks[str(deck_id)], self)
 
     def new_deck(self, deck_name):
         return self.deck(deck_name, create=True)
@@ -257,14 +275,14 @@ CREATE INDEX ix_revlog_usn on revlog (usn);
             'mid': model['id'],
             'mod': int(time()),
             'tags': kwargs.get('tags', ''),
-            'flds': '\u0001'.join(args),
+            'flds': '\x1f'.join(args),
             'sfld': sfld,
             'csum': sha1(sfld.encode('utf8')).hexdigest()
         })
 
-        self.conn.execute('INSERT INTO note ({}) VALUES {}'.format(','.join(note.keys()),
-                                                                   ','.join('?' for _ in note.keys())),
-                          note.values())
+        self.conn.execute('INSERT INTO notes ({}) VALUES ({})'.format(','.join(note.keys()),
+                                                                      ','.join('?' for _ in note.keys())),
+                          tuple(note.values()))
 
         card = deepcopy(DEFAULTS['cards'])
         cid = self._new_id('cid')
@@ -283,6 +301,11 @@ CREATE INDEX ix_revlog_usn on revlog (usn);
                 'ord': order,
                 'mod': int(time())
             })
+
+            self.conn.execute('INSERT INTO cards ({}) VALUES ({})'.format(','.join(card.keys()),
+                                                                          ','.join('?' for _ in card.keys())),
+                              tuple(card.values()))
+        self.conn.commit()
 
     def _new_id(self, id_type):
         id_value = int(time() * 1000)
@@ -322,55 +345,60 @@ CREATE INDEX ix_revlog_usn on revlog (usn);
         if name in models.keys():
             raise ValueError('{} already exists'.format(name))
         else:
-            models[name] = col['models']
+            model_id = self._new_id('mid')
+            models[str(model_id)] = tuple(json.loads(col['models']).values())[0]
+            model = models[str(model_id)]
 
             flds = []
             for field_name in fields:
-                fld = deepcopy(models[name]['flds'][0])
+                fld = deepcopy(model['flds'][0])
                 fld['name'] = field_name
                 flds.append(fld)
 
-            tmpls = []
-            for i, template in enumerate(templates):
-                if isinstance(template, (dict, OrderedDict)):
-                    tmpl = template
-                else:
-                    tmpl = deepcopy(models[name]['tmpls'][0])
-
-                    if isinstance(template, str):
-                        template = template.format('{{}}'.format(field_name) for field_name in fields)
-                        qfmt, afmt = re.fullmatch('(.*)(<hr id=answer>.*)', template).groups()
-                        afmt = '{FrontSide}' + afmt
+            if templates is None:
+                tmpls = self._model('Basic')['tmpls']
+            else:
+                tmpls = []
+                for i, template in enumerate(templates):
+                    if isinstance(template, (dict, OrderedDict)):
+                        tmpl = template
                     else:
-                        qfmt = template[0]
-                        afmt = template[1]
+                        tmpl = deepcopy(model['tmpls'][0])
 
-                    tmpl.update({
-                        'name': 'Card {}'.format(i + 1),
-                        'ord': i,
-                        'qfmt': qfmt,
-                        'afmt': afmt
-                    })
+                        if isinstance(template, str):
+                            template = template\
+                                .format(*('{{%s}}' % field_name for field_name in fields))
+                            qfmt, afmt = re.fullmatch('(.*)(<hr id=answer>.*)', template).groups()
+                            afmt = '{{FrontSide}}' + afmt
+                        else:
+                            qfmt = template[0]
+                            afmt = template[1]
 
-                tmpls.append(tmpl)
+                        tmpl.update({
+                            'name': 'Card {}'.format(i + 1),
+                            'ord': i,
+                            'qfmt': qfmt,
+                            'afmt': afmt
+                        })
+
+                    tmpls.append(deepcopy(tmpl))
 
             if css is None:
-                css = models[name]['css']
+                css = self._model('Basic')['css']
 
-            models[name].update({
+            models[str(model_id)].update({
                 'name': name,
                 'flds': flds,
-                'id': self._new_id('mid'),
+                'id': model_id,
                 'mod': int(time()),
                 'tmpls': tmpls,
                 'css': css
             })
 
-            self.conn.execute('INSERT INTO col ({}) VALUES ({})'.format(','.join(col.keys()),
-                                                                        ','.join('?' for _ in col.keys())),
-                              col.values())
+            self.conn.execute('UPDATE col SET models=?', (json.dumps(models), ))
+            self.conn.commit()
 
-            return models[name]
+            return models[str(model_id)]
 
 
 class AnkiDeck:
@@ -388,15 +416,17 @@ class AnkiDeck:
         return self.anki.add_item(deck=self.name, *args, **kwargs)
 
 
-class Anki:
-    def __init__(self, path):
+class Anki(AnkiDatabase):
+    def __init__(self, filename):
+        self.filename = filename
         self.temp_dir = mkdtemp()
         atexit.register(shutil.rmtree, self.temp_dir, ignore_errors=True)
 
-        with ZipFile(path) as zf:
-            zf.extractall(path=self.temp_dir)
+        if Path(filename).exists():
+            with ZipFile(filename) as zf:
+                zf.extractall(path=self.temp_dir)
 
-        self.anki = AnkiDatabase(sqlite3.connect(str(Path(self.temp_dir).joinpath('collection.anki2'))))
+        super().__init__(sqlite3.connect(str(Path(self.temp_dir).joinpath('collection.anki2'))))
 
     def __enter__(self):
         return self
@@ -405,4 +435,10 @@ class Anki:
         self.close()
 
     def close(self):
+        self.save()
         shutil.rmtree(self.temp_dir)
+
+    def save(self):
+        with ZipFile(self.filename, 'w') as zf:
+            zf.write(str(Path(self.temp_dir).joinpath('collection.anki2')), arcname='collection.anki2')
+            zf.writestr('media', '{}')

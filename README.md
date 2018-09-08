@@ -42,17 +42,17 @@ with Anki(_PATH_OF_ANKI_FILE_) as anki:
 // Permits to set more than two fields. However, by default, only first two fields are used.
 // Template (optional). Everything before '<hr id=answer>' is the front of the card, everything after is the behind.
 // Permits to change the css of your cards (optional). You can just leave this out, it will use the default CSS.
-test_model = test_anki.new_model(
-    name=_MODEL_NAME_,
+test_anki.new_model(
+    name='test_model',
     fields=["English", "Spanish", "French"],
     templates=["{0} - {1} \\n<hr id=answer>\\n {2}"],
     css=_CSS_STRING_
 )
 
-test_deck.add_item("Hello", "Hola", "Bonjour", model=test_model)
+test_deck.add_item("Hello", "Hola", "Bonjour", model='test_model')
 test_deck.add_item("How are you ?", "Como estas?", "Comment ca va ?", model=test_model)
-test_deck.add_item("Flower", "flor", "fleur", model=test_model)
-test_deck.add_item("House", "Casa", "Maison", model=test_model)
+test_deck.add_item("Flower", "flor", "fleur", model='test_model')
+test_deck.add_item("House", "Casa", "Maison", model='test_model')
 ```
 
 ### Editing CSS

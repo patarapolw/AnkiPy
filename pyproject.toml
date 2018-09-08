@@ -12,3 +12,4 @@ bs4 = "^0.0.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.7"
+nonrepeat = "^0.1.0"
