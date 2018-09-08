@@ -350,9 +350,12 @@ CREATE INDEX ix_revlog_usn on revlog (usn);
             model = models[str(model_id)]
 
             flds = []
-            for field_name in fields:
+            for i, field_name in enumerate(fields):
                 fld = deepcopy(model['flds'][0])
-                fld['name'] = field_name
+                fld.update({
+                    'name': field_name,
+                    'ord': i
+                })
                 flds.append(fld)
 
             if templates is None:
@@ -368,7 +371,7 @@ CREATE INDEX ix_revlog_usn on revlog (usn);
                         if isinstance(template, str):
                             template = template\
                                 .format(*('{{%s}}' % field_name for field_name in fields))
-                            qfmt, afmt = re.fullmatch('(.*)(<hr id=answer>.*)', template).groups()
+                            qfmt, afmt = re.fullmatch(r'(.*)(<hr id=answer>.*)', template, flags=re.DOTALL).groups()
                             afmt = '{{FrontSide}}' + afmt
                         else:
                             qfmt = template[0]
@@ -381,7 +384,7 @@ CREATE INDEX ix_revlog_usn on revlog (usn);
                             'afmt': afmt
                         })
 
-                    tmpls.append(deepcopy(tmpl))
+                    tmpls.append(tmpl)
 
             if css is None:
                 css = self._model('Basic')['css']

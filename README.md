@@ -45,7 +45,7 @@ with Anki(_PATH_OF_ANKI_FILE_) as anki:
 test_anki.new_model(
     name='test_model',
     fields=["English", "Spanish", "French"],
-    templates=["{0} - {1} \\n<hr id=answer>\\n {2}"],
+    templates=["{0} - {1} \n<hr id=answer>\n {2}"],
     css=_CSS_STRING_
 )
 

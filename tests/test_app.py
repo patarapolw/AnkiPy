@@ -32,7 +32,7 @@ def test_basic(in_file, has_template, has_css):
     )
 
     if has_template:
-        model_kwargs['templates'] = ["{0} - {1} \\n<hr id=answer>\\n {2}"]
+        model_kwargs['templates'] = ["{0} - {1} \n<hr id=answer>\n {2}"]
     if has_css:
         model_kwargs['css'] = '.card { font-family: Tahoma; }'
 
@@ -74,7 +74,7 @@ def test_basic_context(in_file, has_template, has_css):
         )
 
         if has_template:
-            model_kwargs['templates'] = ["{0} - {1} \\n<hr id=answer>\\n {2}"]
+            model_kwargs['templates'] = ["{0} - {1} \n<hr id=answer>\n {2}"]
         if has_css:
             model_kwargs['css'] = '.card { font-family: Tahoma; }'
 
