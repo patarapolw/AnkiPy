@@ -1,5 +1,9 @@
 # AnkiPy
 
+[![Build Status](https://travis-ci.org/patarapolw/AnkiPy.svg?branch=master)](https://travis-ci.org/patarapolw/AnkiPy)
+[![PyPI version shields.io](https://img.shields.io/pypi/v/AnkiPy.svg)](https://pypi.python.org/pypi/AnkiPy/)
+[![PyPI license](https://img.shields.io/pypi/l/AnkiPy.svg)](https://pypi.python.org/pypi/AnkiPy/)
+
 This is a port of [AnkiSharp](https://github.com/AnkiTools/AnkiSharp) for Python. It allows you to create, read and edit Anki files.
 
 ### PyPI
